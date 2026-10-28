@@ -1,0 +1,175 @@
+
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kirim-chiqim formasi</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 30px 15px;
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+            padding: 25px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px #00000010;
+        }
+
+        h1 {
+            margin-top: 0;
+            text-align: center;
+        }
+
+        label {
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        button, .back {
+            display: inline-block;
+            padding: 12px 18px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            background: #2563eb;
+            text-decoration: none;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .back {
+            margin-top: 12px;
+            background: #64748b;
+            text-align: center;
+        }
+
+        .error {
+            padding: 12px;
+            background: #fee2e2;
+            color: #b91c1c;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>
+        {% if transaction %}
+            ✏️ Tranzaksiyani tahrirlash
+        {% else %}
+            ➕ Yangi kirim yoki chiqim
+        {% endif %}
+    </h1>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <label for="title">Nomi</label>
+        <input
+            type="text"
+            id="title"
+            name="title"
+            value="{{ transaction.title|default:'' }}"
+            placeholder="Masalan: Oylik maosh"
+            required
+        >
+
+        <label for="amount">Summa (so'm)</label>
+        <input
+            type="number"
+            id="amount"
+            name="amount"
+            min="0.01"
+            step="0.01"
+            value="{{ transaction.amount|default:'' }}"
+            placeholder="Masalan: 1500000"
+            required
+        >
+
+        <label for="transaction_type">Tranzaksiya turi</label>
+        <select id="transaction_type" name="transaction_type" required>
+            <option value="income"
+                {% if transaction.transaction_type == "income" %}selected{% endif %}>
+                Kirim
+            </option>
+            <option value="expense"
+                {% if transaction.transaction_type == "expense" %}selected{% endif %}>
+                Chiqim
+            </option>
+        </select>
+
+        <label for="category">Kategoriya</label>
+        <select id="category" name="category">
+            <option value="">Kategoriyasiz</option>
+            {% for category in categories %}
+                <option value="{{ category.id }}"
+                    {% if transaction.category_id == category.id %}selected{% endif %}>
+                    {{ category.name }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="date">Sana</label>
+        <input
+            type="date"
+            id="date"
+            name="date"
+            value="{{ transaction.date|date:'Y-m-d' }}"
+            required
+        >
+
+        <label for="description">Izoh</label>
+        <textarea
+            id="description"
+            name="description"
+            rows="3"
+            placeholder="Qo'shimcha ma'lumot"
+        >{{ transaction.description|default:'' }}</textarea>
+
+        <button type="submit">
+            {% if transaction %}Saqlash{% else %}Tranzaksiyani qo'shish{% endif %}
+        </button>
+    </form>
+
+    <a href="{% url 'dashboard' %}" class="back">⬅ Bosh sahifaga qaytish</a>
+</div>
+
+</body>
+</html>

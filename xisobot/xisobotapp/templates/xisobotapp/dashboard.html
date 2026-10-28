@@ -1,0 +1,409 @@
+
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shaxsiy hisoblagich</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 25px;
+            background: #f1f5f9;
+            color: #1e293b;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+        }
+
+        h1 {
+            margin: 0;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 11px 15px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+            margin-bottom: 25px;
+        }
+
+        .card, .section {
+            padding: 22px;
+            border-radius: 14px;
+            background: white;
+            box-shadow: 0 3px 12px #00000008;
+            margin-bottom: 25px;
+        }
+
+        .card p {
+            color: #64748b;
+        }
+
+        .green { color: #16a34a; }
+        .red { color: #dc2626; }
+        .blue { color: #2563eb; }
+
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .filters label {
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        input, select {
+            width: 100%;
+            min-width: 130px;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            white-space: nowrap;
+        }
+
+        th, td {
+            padding: 13px 10px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+        }
+
+        th {
+            background: #f8fafc;
+        }
+
+        .actions {
+            display: flex;
+            gap: 7px;
+            align-items: center;
+        }
+
+        .edit { background: #d97706; }
+        .delete { background: #dc2626; }
+
+        .empty {
+            padding: 25px;
+            text-align: center;
+            color: #64748b;
+        }
+
+        @media (max-width: 750px) {
+            body {
+                padding: 14px;
+            }
+
+            .cards {
+                grid-template-columns: 1fr;
+            }
+
+            .section {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+
+    <header>
+        <div>
+            <h1>💰 Shaxsiy hisoblagich</h1>
+            <p>Kirim va chiqimlaringizni nazorat qiling</p>
+        </div>
+
+        <a href="{% url 'add_transaction' %}" class="btn">
+            + Tranzaksiya qo'shish
+        </a>
+    </header>
+
+    <!-- Kirim, chiqim va balans -->
+    <div class="cards">
+        <div class="card">
+            <p>💚 Jami kirim</p>
+            <h2 class="green">
+                {{ income|floatformat:2 }} so'm
+            </h2>
+        </div>
+
+        <div class="card">
+            <p>❤️ Jami chiqim</p>
+            <h2 class="red">
+                {{ expenses|floatformat:2 }} so'm
+            </h2>
+        </div>
+
+        <div class="card">
+            <p>💵 Balans</p>
+            <h2 class="{% if balance < 0 %}red{% else %}blue{% endif %}">
+                {{ balance|floatformat:2 }} so'm
+            </h2>
+        </div>
+    </div>
+
+    <!-- Filtrlash -->
+    <div class="section">
+        <h2>🔎 Tranzaksiyalarni filtrlash</h2>
+
+        <form method="GET" class="filters">
+            <div>
+                <label for="start_date">Boshlanish sanasi</label>
+                <input type="date" id="start_date"
+                       name="start_date" value="{{ start_date }}">
+            </div>
+
+            <div>
+                <label for="end_date">Tugash sanasi</label>
+                <input type="date" id="end_date"
+                       name="end_date" value="{{ end_date }}">
+            </div>
+
+            <div>
+                <label for="type">Turi</label>
+                <select name="type" id="type">
+                    <option value="">Barchasi</option>
+                    <option value="income"
+                        {% if selected_type == "income" %}selected{% endif %}>
+                        Kirim
+                    </option>
+                    <option value="expense"
+                        {% if selected_type == "expense" %}selected{% endif %}>
+                        Chiqim
+                    </option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn">Filter</button>
+
+            <a href="{% url 'dashboard' %}" class="btn"
+               style="background:#64748b;">
+                Tozalash
+            </a>
+        </form>
+    </div>
+
+    <!-- Oylik diagramma -->
+    <div class="section">
+        <h2>📊 Oylik kirim va chiqim</h2>
+        <canvas id="monthlyChart"></canvas>
+
+        {% if not chart_labels %}
+            <p class="empty">Diagramma uchun ma'lumot hali yo'q.</p>
+        {% endif %}
+    </div>
+
+    <!-- Kategoriya diagrammasi -->
+    <div class="section">
+        <h2>🥧 Kategoriyalar bo‘yicha chiqimlar</h2>
+        <canvas id="categoryChart"></canvas>
+
+        {% if not category_labels %}
+            <p class="empty">
+                Hozircha kategoriyalarga biriktirilgan chiqimlar yo‘q.
+            </p>
+        {% endif %}
+    </div>
+
+    <!-- Tranzaksiyalar jadvali -->
+    <div class="section">
+        <h2>📋 Tranzaksiyalar tarixi</h2>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Sana</th>
+                        <th>Nomi</th>
+                        <th>Kategoriya</th>
+                        <th>Turi</th>
+                        <th>Summa</th>
+                        <th>Amallar</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for item in transactions %}
+                    <tr>
+                        <td>{{ item.date|date:"d.m.Y" }}</td>
+                        <td>{{ item.title }}</td>
+
+                        <td>
+                            {% if item.category %}
+                                {{ item.category.name }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if item.transaction_type == "income" %}
+                                <span class="green">Kirim</span>
+                            {% else %}
+                                <span class="red">Chiqim</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if item.transaction_type == "income" %}
+                                <span class="green">
+                                    +{{ item.amount|floatformat:2 }}
+                                </span>
+                            {% else %}
+                                <span class="red">
+                                    -{{ item.amount|floatformat:2 }}
+                                </span>
+                            {% endif %}
+                            so'm
+                        </td>
+
+                        <td>
+                            <div class="actions">
+                                <a class="btn edit"
+                                   href="{% url 'edit_transaction' item.pk %}">
+                                    Tahrirlash
+                                </a>
+
+                                <form method="POST"
+                                      action="{% url 'delete_transaction' item.pk %}"
+                                      onsubmit="return confirm('Bu tranzaksiyani o‘chirmoqchimisiz?');">
+                                    {% csrf_token %}
+                                    <button class="btn delete" type="submit">
+                                        O'chirish
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="empty">
+                            Hozircha tranzaksiyalar mavjud emas.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Django ma'lumotlarini JavaScriptga uzatish -->
+{{ chart_labels|json_script:"chart-labels" }}
+{{ chart_income|json_script:"chart-income" }}
+{{ chart_expenses|json_script:"chart-expenses" }}
+{{ category_labels|json_script:"category-labels" }}
+{{ category_amounts|json_script:"category-amounts" }}
+
+<script>
+    // Oylik kirim va chiqim ma'lumotlari
+    const labels = JSON.parse(
+        document.getElementById("chart-labels").textContent
+    );
+
+    const incomeData = JSON.parse(
+        document.getElementById("chart-income").textContent
+    );
+
+    const expenseData = JSON.parse(
+        document.getElementById("chart-expenses").textContent
+    );
+
+    new Chart(document.getElementById("monthlyChart"), {
+        type: "bar",
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: "Kirim",
+                    data: incomeData,
+                    backgroundColor: "#16a34a"
+                },
+                {
+                    label: "Chiqim",
+                    data: expenseData,
+                    backgroundColor: "#dc2626"
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Kategoriyalar bo‘yicha chiqimlar
+    const categoryLabels = JSON.parse(
+        document.getElementById("category-labels").textContent
+    );
+
+    const categoryAmounts = JSON.parse(
+        document.getElementById("category-amounts").textContent
+    );
+
+    if (categoryLabels.length > 0) {
+        new Chart(document.getElementById("categoryChart"), {
+            type: "doughnut",
+            data: {
+                labels: categoryLabels,
+                datasets: [{
+                    label: "Chiqim (so'm)",
+                    data: categoryAmounts
+                }]
+            },
+            options: {
+                responsive: true
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
